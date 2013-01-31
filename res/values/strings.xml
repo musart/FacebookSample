@@ -1,0 +1,15 @@
+<resources>
+
+    <string name="app_name">FacebookSample</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="menu_settings">Settings</string>
+    <string name="title_activity_main">Facebook Sample</string>
+    <string name="app_id">337784949670783</string>
+    <string name="account">account</string>
+    <string name="connect">connect</string>
+    <string name="connecting">connecting</string>
+    <string name="connected">connected</string>
+    <string name="friend">friend</string>
+    <string name="post">post</string>
+
+</resources>
