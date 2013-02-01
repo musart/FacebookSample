@@ -64,10 +64,8 @@ public class MainActivity extends Activity {
 		});
 
 		Session.openActiveSession(this, true, new Session.StatusCallback() {
-
 			@Override
 			public void call(Session session, SessionState state, Exception exception) {
-				Log.i("", "call()");
 				updateUser(session);
 			}
 		});
@@ -87,9 +85,7 @@ public class MainActivity extends Activity {
 	
 	private void updateUser(Session session) {
 		if (session.isOpened()) {
-			Log.i("", "session.isOpened()");
 			Request.executeMeRequestAsync(session, new Request.GraphUserCallback() {
-
 				@Override
 				public void onCompleted(GraphUser user, Response response) {
 					Log.i("", "onCompleted()");
@@ -101,7 +97,6 @@ public class MainActivity extends Activity {
 				}
 			});
 		} else {
-			Log.i("", "session.isOpened() false");
 			updateStatus(null);
 		}
 	}
@@ -180,21 +175,24 @@ public class MainActivity extends Activity {
 
 	private void updatePostStatus() {
 		Session session = Session.getActiveSession();
-		if (session != null && session.getPermissions().contains("publish_actions")) {
+		if (session != null
+				&& session.getPermissions().contains("publish_actions")) {
 			final String message = "test";
-            Request request = Request
-                    .newStatusUpdateRequest(Session.getActiveSession(), message, new Request.Callback() {
-                        @Override
-                        public void onCompleted(Response response) {
-                        	Toast.makeText(MainActivity.this, "Posted", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-            request.executeAsync();
+			Request request = Request.newStatusUpdateRequest(
+					Session.getActiveSession(), message,
+					new Request.Callback() {
+						@Override
+						public void onCompleted(Response response) {
+							Toast.makeText(MainActivity.this, "Posted", Toast.LENGTH_SHORT).show();
+						}
+					});
+			request.executeAsync();
 		} else {
-			session.requestNewPublishPermissions(new Session.NewPermissionsRequest(this, Arrays.asList("publish_actions")));
+			session.requestNewPublishPermissions(new Session.NewPermissionsRequest(
+					this, Arrays.asList("publish_actions")));
 		}
 	}
-	
+
 	private void getFriendList() {
 		Session session = Session.getActiveSession();
 		if (session != null) {
