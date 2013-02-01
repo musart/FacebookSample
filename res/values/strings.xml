@@ -8,7 +8,8 @@
     <string name="account">account</string>
     <string name="connect">connect</string>
     <string name="connecting">connecting</string>
-    <string name="connected">connected</string>
+    <string name="login">login</string>
+    <string name="logout">logout</string>
     <string name="friend">friend</string>
     <string name="post">post</string>
 

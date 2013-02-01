@@ -11,13 +11,11 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import com.facebook.Request;
 import com.facebook.Response;
 import com.facebook.Session;
+import com.facebook.Session.StatusCallback;
 import com.facebook.SessionState;
 import com.facebook.model.GraphUser;
 import com.facebook.widget.ProfilePictureView;
@@ -32,6 +30,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
@@ -44,12 +43,7 @@ public class MainActivity extends Activity {
 
 		Button connectButton = (Button) findViewById(R.id.connectButton);
 		connectButton.setText(R.string.connecting);
-		connectButton.setOnClickListener(new OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				handleLogInOut();
-			}
-		});
+		connectButton.setEnabled(false);
 
 		Button postButton = (Button) findViewById(R.id.postButton);
 		postButton.setEnabled(false);
@@ -74,24 +68,7 @@ public class MainActivity extends Activity {
 			@Override
 			public void call(Session session, SessionState state, Exception exception) {
 				Log.i("", "call()");
-				if (session.isOpened()) {
-					Log.i("", "session.isOpened()");
-					Request.executeMeRequestAsync(session, new Request.GraphUserCallback() {
-
-						@Override
-						public void onCompleted(GraphUser user, Response response) {
-							Log.i("", "onCompleted()");
-							if (user != null) {
-								Log.i("", "user name : " + user.getName());
-
-								updateStatus(user);
-							}
-						}
-					});
-				} else {
-					Log.i("", "session.isOpened() false");
-					updateStatus(null);
-				}
+				updateUser(session);
 			}
 		});
 	}
@@ -107,6 +84,27 @@ public class MainActivity extends Activity {
 		super.onActivityResult(requestCode, resultCode, data);
 		Session.getActiveSession().onActivityResult(this, requestCode, resultCode, data);
 	}
+	
+	private void updateUser(Session session) {
+		if (session.isOpened()) {
+			Log.i("", "session.isOpened()");
+			Request.executeMeRequestAsync(session, new Request.GraphUserCallback() {
+
+				@Override
+				public void onCompleted(GraphUser user, Response response) {
+					Log.i("", "onCompleted()");
+					if (user != null) {
+						Log.i("", "user name : " + user.getName());
+
+						updateStatus(user);
+					}
+				}
+			});
+		} else {
+			Log.i("", "session.isOpened() false");
+			updateStatus(null);
+		}
+	}
 
 	private void updateStatus(GraphUser user) {
 		if (user != null) {
@@ -117,7 +115,14 @@ public class MainActivity extends Activity {
 			profilePictureView.setProfileId(user.getId());
 
 			Button connectButton = (Button) findViewById(R.id.connectButton);
-			connectButton.setText(R.string.connected);
+			connectButton.setEnabled(true);
+			connectButton.setText(R.string.logout);
+			connectButton.setOnClickListener(new OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					handleLogOut();
+				}
+			});
 
 			Button postButton = (Button) findViewById(R.id.postButton);
 			postButton.setEnabled(true);
@@ -125,31 +130,78 @@ public class MainActivity extends Activity {
 			Button friendButton = (Button) findViewById(R.id.friendButton);
 			friendButton.setEnabled(true);
 		} else {
-
+			Button connectButton = (Button) findViewById(R.id.connectButton);
+			connectButton.setEnabled(true);
+			connectButton.setText(R.string.login);
+			connectButton.setOnClickListener(new OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					handleLogIn();
+				}
+			});
+			
+			Button postButton = (Button) findViewById(R.id.postButton);
+			postButton.setEnabled(false);
+			
+			Button friendButton = (Button) findViewById(R.id.friendButton);
+			friendButton.setEnabled(false);
 		}
 	}
 	
-	private void handleLogInOut() {
+	private void handleLogOut() {
+		Session session = Session.getActiveSession();
+		Button connectButton = (Button) findViewById(R.id.connectButton);
 		
+		if (!session.isClosed()) {
+			session.closeAndClearTokenInformation();
+		}
+		connectButton.setText(R.string.login);
+		updateStatus(null);
+	}
+	
+	private void handleLogIn() {
+		Session session = Session.getActiveSession();
+		if (!session.isOpened() && !session.isClosed()) {
+			session.openForRead(new Session.OpenRequest(this).setCallback(new StatusCallback() {
+				@Override
+				public void call(Session session, SessionState state, Exception exception) {
+					updateUser(session);
+				}
+			}));
+		} else {
+			Session.openActiveSession(this, true, new StatusCallback() {
+				@Override
+				public void call(Session session, SessionState state, Exception exception) {
+					updateUser(session);
+				}
+			});
+		}
 	}
 
 	private void updatePostStatus() {
 		Session session = Session.getActiveSession();
 		if (session != null && session.getPermissions().contains("publish_actions")) {
-			Log.i("", "I have a permission!");
-			//handlePendingAction();
+			final String message = "test";
+            Request request = Request
+                    .newStatusUpdateRequest(Session.getActiveSession(), message, new Request.Callback() {
+                        @Override
+                        public void onCompleted(Response response) {
+                        	Toast.makeText(MainActivity.this, "Posted", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+            request.executeAsync();
 		} else {
-			Log.i("", "I have a no permission!");
-			session.requestNewPublishPermissions(new Session.NewPermissionsRequest(
-					this, Arrays.asList("publish_actions")));
+			session.requestNewPublishPermissions(new Session.NewPermissionsRequest(this, Arrays.asList("publish_actions")));
 		}
 	}
 	
 	private void getFriendList() {
 		Session session = Session.getActiveSession();
 		if (session != null) {
+			Button friendButton = (Button) findViewById(R.id.friendButton);
+			friendButton.setEnabled(false);
+			
 			String url = URL_PREFIX_FRIENDS + session.getAccessToken();
-			Log.i("", "url:" + url);
 			
 			JSONTask jsonTask = new JSONTask();
 			jsonTask.execute(url);
@@ -182,24 +234,27 @@ public class MainActivity extends Activity {
 				}
 			} catch (ClientProtocolException e) {
 				e.printStackTrace();
+				return "";
 			} catch (IOException e) {
 				e.printStackTrace();
+				return "";
 			}
 
-			Log.i("", "result:" + result);
 			return result;
 		}
 
 		@Override
 		protected void onPostExecute(String result) {
-			try {
-				JSONObject friendList = (JSONObject) new JSONTokener(result).nextValue();
-				Log.i("", "" + friendList.length());
-				Log.i("", "" + friendList.getString("data").length());
-				Log.i("", "" + friendList.getString("paging").length());
-			} catch (JSONException e) {
-				e.printStackTrace();
+			if(result.equals("")) {
+				
+			} else {
+				Intent intent = new Intent(MainActivity.this, FriendListActivity.class);
+				intent.putExtra("jsonFriendData", result);
+				startActivity(intent);
 			}
+			
+			Button friendButton = (Button) findViewById(R.id.friendButton);
+			friendButton.setEnabled(true);
 		}
 	}
 }
